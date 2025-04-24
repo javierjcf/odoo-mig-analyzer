@@ -63,10 +63,12 @@ oca-collector/
 │   └── web/14.0/module_name/
 ├── migrations/                    # Carpeta migrations copiadas
 │   └── web/14.0_module_name/
-├── oca-analysis-full.txt          # Análisis completo por repo
-├── oca-analysis-resume.txt        # Solo resumen de módulos a migrar
 ├── oca-analysis-full.csv          # Detalles completos (módulo, versión, estado)
-├── oca-analysis-resume.csv        # Solo módulos con migrations y errores
+├── oca-analysis-full.txt          # Análisis completo por repo
+├── oca-analysis-migration.csv     # Solo resumen de módulos a migrar
+├── oca-analysis-migration.txt     # Solo resumen de módulos a migrar
+├── oca-analysis-not-found.csv     # Solo resumen de módulos que desaparecen en alguna version
+├── oca-analysis-not-found.txt     # Solo resumen de módulos que desaparecen en alguna version
 ├── oca-errors.csv                 # Errores de lectura de CSV
 ├── mi_log.txt                     # (si usaste --log)
 

@@ -173,6 +173,9 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+##VsCode
+.vscode/
 
-##
+
+## Carpeta generada por el script de instalación
 .oca-collector/
