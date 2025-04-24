@@ -137,7 +137,6 @@ def setup_directories():
 def parse_csv(file):
     repos_data = defaultdict(list)
     csv_errors = []
-    modulos_instalados = set()
     with open(file, newline='') as csvfile:
         reader = csv.reader(csvfile)
         for line_num, row in enumerate(reader, start=1):
@@ -152,58 +151,9 @@ def parse_csv(file):
                 csv_errors.append((line_num, row))
                 continue
             repos_data[repo].append((module, url, line_num))
-            modulos_instalados.add(module)
-    return repos_data, csv_errors, modulos_instalados
+    return repos_data, csv_errors
 
-def analyze_repos(args, repos_data, modulos_instalados):
-    start_v = int(args.start.split('.')[0])
-    end_v = int(args.end.split('.')[0])
-    branches = [f"{v}.0" for v in range(start_v, end_v + 1)]
-
-    resumen = {}
-    rows_full, rows_resume = [], []
-    migrar_global = defaultdict(list)
-
-    for repo, modules in repos_data.items():
-        resumen[repo] = {"con_migrations": defaultdict(list), "sin": set(), "errores": []}
-        for branch in branches:
-            repo_url = f"https://github.com/OCA/{repo}.git"
-            repo_dir = os.path.join(CLONES_DIR, repo, branch)
-
-            if not repo_exists(repo_url):
-                log(f"❌ Repositorio no encontrado: {repo_url}")
-                for mod, _, line in modules:
-                    resumen[repo]["errores"].append(f"{mod} @ {branch} (repo no encontrado)")
-                    rows_full.append([repo, mod, "Error", f"{branch}: repo no encontrado", line])
-                break
-
-            if not args.dry_run:
-                ensure_repo_cloned(repo_url, repo_dir, branch)
-
-            instalados, no_encontrados = log_repo_modules(repo, branch, repo_dir, modules)
-
-            for module, _, line in modules:
-                log(f"\n🎯 Procesando módulo: {module} @ {branch}")
-                log(f"📦 Repositorio: {repo_url}")
-
-                mod_path = os.path.join(repo_dir, module)
-                if not os.path.exists(mod_path):
-                    log(f"❌ NO encontrado en rama {branch} → ignorado")
-                    resumen[repo]["errores"].append(f"{module} @ {branch} (no encontrado)")
-                    continue
-
-                migrations_path = os.path.join(mod_path, "migrations")
-                if os.path.isdir(migrations_path):
-                    log(f"✅ migrations/ encontrada")
-                    if args.save_migrations:
-                        dest = os.path.join(MIGRATIONS_DIR, repo, f"{branch}_{module}")
-                        log(f"📁 Copiando migrations a: {dest}")
-                        save_migrations(repo, branch, module, repo_dir)
-                else:
-                    log("🚫 Sin carpeta migrations")
-    return resumen, migrar_global, rows_full, rows_resume
-
-def analyze_repos(args, repos_data, modulos_instalados):
+def analyze_repos(args, repos_data):
     start_v = int(args.start.split('.')[0])
     end_v = int(args.end.split('.')[0])
     branches = [f"{v}.0" for v in range(start_v, end_v + 1)]
@@ -311,8 +261,8 @@ def main():
         with open(LOG_FILE, "w", encoding="utf-8") as f:
             f.write("")  # Limpia el log
     setup_directories()
-    repos_data, csv_errors, modulos_instalados = parse_csv(args.file)
-    resumen, migrar_global, rows_full, rows_resume = analyze_repos(args, repos_data, modulos_instalados)
+    repos_data, csv_errors = parse_csv(args.file)
+    resumen, migrar_global, rows_full, rows_resume = analyze_repos(args, repos_data)
     write_txt_summary(resumen, migrar_global, csv_errors)
     write_txt_resume(migrar_global, csv_errors)
     write_csv_outputs(rows_full, rows_resume, csv_errors)
