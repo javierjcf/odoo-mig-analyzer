@@ -16,6 +16,8 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 
 # === Rutas generales ===
 BASE_DIR = "oca-collector"
+os.makedirs(BASE_DIR, exist_ok=True)  # 🛡️ Asegura que la carpeta principal exista
+
 CLONES_DIR = os.path.join(BASE_DIR, "repos")
 MIGRATIONS_DIR = os.path.join(BASE_DIR, "migrations")
 TXT_SUMMARY = os.path.join(BASE_DIR, "oca-analysis-full.txt")
@@ -23,6 +25,7 @@ TXT_RESUME = os.path.join(BASE_DIR, "oca-analysis-resume.txt")
 CSV_FULL = os.path.join(BASE_DIR, "oca-analysis-full.csv")
 CSV_RESUME = os.path.join(BASE_DIR, "oca-analysis-resume.csv")
 LOG_FILE = None
+
 
 # === Utilidades ===
 def log(msg):
@@ -48,9 +51,15 @@ def run_git_cmd(cmd, cwd=None):
 
 def repo_exists(repo_url):
     try:
-        return requests.head(repo_url.replace(".git", ""), timeout=5).status_code == 200
-    except:
+        response = requests.head(repo_url.replace(".git", ""), timeout=5)
+        return response.status_code == 200
+    except KeyboardInterrupt:
+        log("🛑 Interrupción durante verificación de repositorio.")
+        raise
+    except Exception as e:
+        log(f"⚠️ Error al verificar repo: {e}")
         return False
+
 
 def extract_repo_name(url):
     try:
