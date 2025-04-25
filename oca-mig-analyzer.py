@@ -217,7 +217,9 @@ def write_summary_block(txt, migrar_global, resumen):
                 txt.write(f"        - {v}\n")
 
     # 💨 Agrupar NO ENCONTRADOS por repositorio
+    txt.write("\n" + "═" * 60 + "\n")
     txt.write("\n💨 MÓDULOS NO ENCONTRADOS EN ALGUNAS VERSIONES\n")
+    txt.write("═" * 60 + "\n\n")
     for repo, data in resumen.items():
         no_enc = data.get("no_encontrados", {})
         if not no_enc:
