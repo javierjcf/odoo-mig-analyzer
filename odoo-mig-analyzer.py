@@ -233,7 +233,7 @@ def generate_txt_reports(resumen, compact=False):
                 txt.write(write_versions_line(mod, vers))
 
     def write_block_not_found(txt):
-        write_section_header(txt, "💨 MÓDULOS NO ENCONTRADOS EN ALGUNAS VERSIONES\n")
+        write_section_header(txt, "💨 MÓDULOS NO ENCONTRADOS EN ALGUNAS VERSIONES")
         for repo, data in resumen.items():
             no_enc = data.get("no_encontrados", {})
             if not no_enc:
