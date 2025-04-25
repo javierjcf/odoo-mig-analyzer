@@ -30,7 +30,7 @@ python3 oca-mig-analyzer.py -s <versión_origen> -e <versión_destino> -f <archi
 |------------------|----------------------------------------------------------------|
 | `-s`, `--start`  | Versión inicial de Odoo a analizar (ej: `14.0`)                |
 | `-e`, `--end`    | Versión final de Odoo a analizar (ej: `17.0`)                  |
-| `-f`, `--file`   | Ruta al archivo CSV con los módulos instalados de OCA         |
+| `-f`, `--file`   | Ruta al archivo CSV con los módulos instalados de OCA          |
 
 
 #### 🧩 Opciones adicionales
@@ -40,6 +40,7 @@ python3 oca-mig-analyzer.py -s <versión_origen> -e <versión_destino> -f <archi
 | `--save-migrations`   | Si se activa, guarda las carpetas `migrations/` encontradas por módulo      |
 | `--dry-run`           | Simula la ejecución sin clonar ni escribir archivos (útil para validar CSV)|
 | `--log <archivo>`     | Especifica un archivo de log. Se guarda dentro de `oca-collector/`          |
+| `--comapact`     | Modo compact: Las ramas de cáda mmódulo se rescriben en la misma líena          |
 
 
 ## 📦 Formato del CSV
@@ -47,6 +48,9 @@ Partimos de un csv con todos los módulos de OCA Instalados.
 
 Pordemos conseguirlo filtrando los módulos instalados cuyo **Autor** contiene OCA y agrupando por **Sitio Web**. Después seleccionamos todos los repositorios y exportamos.
 Debe solo dos **dos columnas**, interpretada la primera como nombre de Módulo y la otra como la dirección a OCA: Por ejemplo,"Nombre técnico" y "Sitio web".
+
+Lo ideal es No tener las cabeceras en la primera línea, para que no lo detecte como error.
+Hay que revisar que la URL de OCa es correcta, ya que la exportación de Sitio Web no siempre es precisa.
 
 
 **Ejemplo:**
