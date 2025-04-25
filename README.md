@@ -1,5 +1,5 @@
 # 🧠 Odoo Migration Analyzer (`oca-mig-analyzer.py`)
-Script de apoyyo para las migraciones de Odoo enterprise. Cuando Odoo S.A. migra una base de datos, solo hace la parte de Odoo community y Odoo enterprise. Todos los módulos de OCA son ignorados.
+Script de apoyo para las migraciones de Odoo enterprise. Cuando Odoo S.A. migra una base de datos, solo hace la parte de Odoo community y Odoo enterprise. Todos los módulos de OCA son ignorados.
 
 Este script analiza módulos de Odoo, incluidos los de la comunidad OCA, buscando carpetas `migrations/` en las ramas especificadas, y genera un informe detallado por repositorio y módulo.
 
