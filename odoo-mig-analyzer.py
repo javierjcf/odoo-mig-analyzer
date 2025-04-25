@@ -95,16 +95,21 @@ def save_migrations(repo, branch, module, src_root):
     shutil.copytree(src, dest)
 
 def log_repo_modules(repo, branch, repo_dir, modules):
-    modulos_en_repo = {
-        name for name in os.listdir(repo_dir)
-        if os.path.isdir(os.path.join(repo_dir, name)) and not name.startswith('.')
-    } if os.path.isdir(repo_dir) else set()
+    # Directorios comunes donde Odoo coloca módulos
+    search_dirs = [repo_dir, os.path.join(repo_dir, "addons"), os.path.join(repo_dir, "odoo", "addons")]
+
+    modulos_en_repo = set()
+    for d in search_dirs:
+        if os.path.isdir(d):
+            for name in os.listdir(d):
+                full_path = os.path.join(d, name)
+                if os.path.isdir(full_path) and not name.startswith('.'):
+                    modulos_en_repo.add(name)
 
     modulos_csv = set(mod for mod, _, _ in modules)
 
     instalados = [m for m in modulos_csv if m in modulos_en_repo]
     no_encontrados = [m for m in modulos_csv if m not in modulos_en_repo]
-    no_instalados = [m for m in sorted(modulos_en_repo - modulos_csv)]
 
     log(f"\n📦 Repositorio: {repo} @ {branch}")
     log("=" * 60)
@@ -120,6 +125,7 @@ def log_repo_modules(repo, branch, repo_dir, modules):
             log(f"    🔍 {m} @ {branch}")
 
     return instalados, no_encontrados
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Analiza módulos de OCA para detectar migrations")
@@ -170,7 +176,7 @@ def analyze_repos(args, repos_data, csv_errors):
         }
 
         for branch in branches:
-            repo_url = f"https://github.com/OCA/{repo}.git"
+            repo_url = modules[0][1]
             repo_dir = os.path.join(CLONES_DIR, repo, branch)
 
             if not repo_exists(repo_url):
