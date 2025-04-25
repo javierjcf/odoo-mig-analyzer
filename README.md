@@ -53,6 +53,11 @@ Debe solo dos **dos columnas**, interpretada la primera como nombre de Módulo y
 Lo ideal es No tener las cabeceras en la primera línea, para que no lo detecte como error.
 Hay que revisar que la URL de OCa es correcta, ya que la exportación de Sitio Web no siempre es precisa.
 
+## Limitaciones
+- Los módulos renombrados no se detectan
+- Si un módulo se mueve de un repositorio a otro lo detectará como no encontrado en el repositorio original
+- No tienen en cuenta los PR de OCA, es decir puede decir que no se encontró un módulo en una versión pero si hay PR
+
 
 **Ejemplo:**
 
