@@ -15,16 +15,20 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 
 # === Rutas generales ===
 BASE_DIR = "oca-collector"
-os.makedirs(BASE_DIR, exist_ok=True)
 
 CLONES_DIR = os.path.join(BASE_DIR, "repos")
 MIGRATIONS_DIR = os.path.join(BASE_DIR, "migrations")
-TXT_SUMMARY = os.path.join(BASE_DIR, "oca-analysis-full.txt")
-TXT_MIGRATION = os.path.join(BASE_DIR, "oca-analysis-migration.txt")
-TXT_NOT_FOUND = os.path.join(BASE_DIR, "oca-analysis-not-found.txt")
+ANALYSIS_TXT_DIR = os.path.join(BASE_DIR, "analysis_txt")
+ANALYSIS_CSV_DIR = os.path.join(BASE_DIR, "analysis_csv")
 
-CSV_FULL = os.path.join(BASE_DIR, "oca-analysis-full.csv")
-CSV_RESUME = os.path.join(BASE_DIR, "oca-analysis-resume.csv")
+TXT_SUMMARY = os.path.join(ANALYSIS_TXT_DIR, "oca-analysis-full.txt")
+TXT_MIGRATION = os.path.join(ANALYSIS_TXT_DIR, "oca-analysis-migration.txt")
+TXT_NOT_FOUND = os.path.join(ANALYSIS_TXT_DIR, "oca-analysis-not-found.txt")
+
+CSV_FULL = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-full.csv")
+CSV_MIGRATION = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-migration.csv")
+CSV_NOT_FOUND = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-not-found.csv")
+CSV_BY_REPORT = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-by-report.csv")
 LOG_FILE = None
 
 def log(msg):
@@ -123,6 +127,9 @@ def parse_arguments():
     return parser.parse_args()
 
 def setup_directories():
+    os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs(ANALYSIS_TXT_DIR, exist_ok=True)
+    os.makedirs(ANALYSIS_CSV_DIR, exist_ok=True)
     os.makedirs(CLONES_DIR, exist_ok=True)
     os.makedirs(MIGRATIONS_DIR, exist_ok=True)
 
@@ -212,7 +219,7 @@ def generate_txt_reports(resumen, compact=False):
             return "".join(lines)
 
     def write_block_migrations(txt):
-        txt.write("🟠 A MIGRAR (agrupado por repositorio OCA)\n")
+        write_section_header(txt, "📋  RESUMEN FINAL DE MIGRACIONES  📋")
         for repo, data in resumen.items():
             if not data["con_migrations"]:
                 continue
@@ -221,7 +228,7 @@ def generate_txt_reports(resumen, compact=False):
                 txt.write(write_versions_line(mod, vers))
 
     def write_block_not_found(txt):
-        txt.write("💨 MÓDULOS NO ENCONTRADOS EN ALGUNAS VERSIONES\n")
+        write_section_header(txt, "💨 MÓDULOS NO ENCONTRADOS EN ALGUNAS VERSIONES\n")
         for repo, data in resumen.items():
             no_enc = data.get("no_encontrados", {})
             if not no_enc:
@@ -247,21 +254,19 @@ def generate_txt_reports(resumen, compact=False):
             for err in data["errores"]:
                 txt.write(f"  • {err}\n")
 
-        write_section_header(txt, "📋  RESUMEN FINAL DE MIGRACIONES  📋")
+        txt.write("\n")
         write_block_migrations(txt)
         txt.write("\n")
         write_block_not_found(txt)
 
-    with open(os.path.join(BASE_DIR, "oca-analysis-migration.txt"), "w", encoding="utf-8") as txt:
-        write_section_header(txt, "📋  MÓDULOS CON MIGRATIONS  📋")
+    with open(TXT_MIGRATION, "w", encoding="utf-8") as txt:
         write_block_migrations(txt)
 
-    with open(os.path.join(BASE_DIR, "oca-analysis-not-found.txt"), "w", encoding="utf-8") as txt:
-        write_section_header(txt, "💨 MÓDULOS NO ENCONTRADOS EN ALGUNAS VERSIONES")
+    with open(TXT_NOT_FOUND, "w", encoding="utf-8") as txt:
         write_block_not_found(txt)
 
 
-def generate_csv_reports(rows_full, rows_resume, csv_errors, resumen):
+def generate_csv_reports(rows_full, rows_resume, csv_errors, resumen, compact=False):
     # Análisis completo
     with open(CSV_FULL, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -269,13 +274,13 @@ def generate_csv_reports(rows_full, rows_resume, csv_errors, resumen):
         writer.writerows(rows_full)
 
     # Solo módulos CON migrations
-    with open(os.path.join(BASE_DIR, "oca-analysis-migration.csv"), "w", newline='', encoding="utf-8") as f:
+    with open(CSV_MIGRATION, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Repositorio", "Módulo", "Versión"])
         writer.writerows(rows_resume)
 
-    # Módulos NO encontrados
-    with open(os.path.join(BASE_DIR, "oca-analysis-not-found.csv"), "w", newline='', encoding="utf-8") as f:
+    # # Módulos NO encontrados
+    with open(CSV_NOT_FOUND, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Repositorio", "Módulo", "Versiones No Encontradas"])
         for repo, data in resumen.items():
@@ -283,16 +288,7 @@ def generate_csv_reports(rows_full, rows_resume, csv_errors, resumen):
                 version_str = " ".join(f"@{v}" for v in sorted(versions))
                 writer.writerow([repo, mod, version_str])
 
-    # CSV con errores de lectura
-    if csv_errors:
-        with open(os.path.join(BASE_DIR, "oca-errors.csv"), "w", newline='', encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Línea", "Contenido"])
-            for line, row in csv_errors:
-                writer.writerow([f"{line}", " | ".join(row)])
-
-def generate_csv_by_repo(resumen, compact=False):
-    output_file = os.path.join(BASE_DIR, "oca-analysis-by-repo.csv")
+    # Resumen de módulos Agrupado por repositorio
     repos = sorted(resumen.keys())
 
     # Mapeamos: repo -> lista de líneas (cada línea será una celda en la columna del repo)
@@ -319,12 +315,18 @@ def generate_csv_by_repo(resumen, compact=False):
         rows.append(row)
 
     # Guardamos CSV
-    with open(output_file, "w", newline='', encoding="utf-8") as f:
+    with open(CSV_BY_REPORT, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(repos)  # encabezado = nombres de repos
         writer.writerows(rows)
 
-    log(f"📄 CSV agrupado por repositorio generado: {output_file}")
+    # CSV con errores de lectura
+    if csv_errors:
+        with open(os.path.join(BASE_DIR, "oca-errors.csv"), "w", newline='', encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Línea", "Contenido"])
+            for line, row in csv_errors:
+                writer.writerow([f"{line}", " | ".join(row)])
 
 
 def main():
