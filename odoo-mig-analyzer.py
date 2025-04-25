@@ -14,21 +14,27 @@ import signal
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
 # === Rutas generales ===
-BASE_DIR = "oca-collector"
+BASE_DIR = "analysis-collector"
+os.makedirs(BASE_DIR, exist_ok=True)
+
 
 CLONES_DIR = os.path.join(BASE_DIR, "repos")
 MIGRATIONS_DIR = os.path.join(BASE_DIR, "migrations")
 ANALYSIS_TXT_DIR = os.path.join(BASE_DIR, "analysis_txt")
 ANALYSIS_CSV_DIR = os.path.join(BASE_DIR, "analysis_csv")
+CSV_ERRORS = os.path.join(BASE_DIR, "analysis-errors.csv")
 
-TXT_SUMMARY = os.path.join(ANALYSIS_TXT_DIR, "oca-analysis-full.txt")
-TXT_MIGRATION = os.path.join(ANALYSIS_TXT_DIR, "oca-analysis-migration.txt")
-TXT_NOT_FOUND = os.path.join(ANALYSIS_TXT_DIR, "oca-analysis-not-found.txt")
+TXT_SUMMARY = os.path.join(ANALYSIS_TXT_DIR, "analysis-full.txt")
+TXT_MIGRATION = os.path.join(ANALYSIS_TXT_DIR, "analysis-migration.txt")
+TXT_NOT_FOUND = os.path.join(ANALYSIS_TXT_DIR, "analysis-not-found.txt")
 
-CSV_FULL = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-full.csv")
-CSV_MIGRATION = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-migration.csv")
-CSV_NOT_FOUND = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-not-found.csv")
-CSV_BY_REPORT = os.path.join(ANALYSIS_CSV_DIR, "oca-analysis-by-report.csv")
+CSV_MIGRATION = os.path.join(ANALYSIS_CSV_DIR, "analysis-migration.csv")
+CSV_NOT_FOUND = os.path.join(ANALYSIS_CSV_DIR, "analysis-not-found.csv")
+CSV_BY_REPORT = os.path.join(ANALYSIS_CSV_DIR, "analysis-by-report.csv")
+os.makedirs(ANALYSIS_TXT_DIR, exist_ok=True)
+os.makedirs(ANALYSIS_CSV_DIR, exist_ok=True)
+os.makedirs(CLONES_DIR, exist_ok=True)
+os.makedirs(MIGRATIONS_DIR, exist_ok=True)
 LOG_FILE = None
 
 def log(msg):
@@ -122,16 +128,11 @@ def parse_arguments():
     parser.add_argument("-f", "--file", required=True, help="Archivo CSV con módulos")
     parser.add_argument("--save-migrations", action="store_true", help="Guardar carpetas migrations encontradas")
     parser.add_argument("--dry-run", action="store_true", help="Simula sin escribir archivos ni clonar")
-    parser.add_argument("--log", help="Archivo log (se guarda en oca-collector/)")
+    parser.add_argument("--log", help="Archivo log (se guarda en module-collector/)")
     parser.add_argument("--compact", action="store_true", help="Usar formato compacto @version para los informes")
     return parser.parse_args()
 
-def setup_directories():
-    os.makedirs(BASE_DIR, exist_ok=True)
-    os.makedirs(ANALYSIS_TXT_DIR, exist_ok=True)
-    os.makedirs(ANALYSIS_CSV_DIR, exist_ok=True)
-    os.makedirs(CLONES_DIR, exist_ok=True)
-    os.makedirs(MIGRATIONS_DIR, exist_ok=True)
+
 
 def parse_csv(file):
     repos_data = defaultdict(list)
@@ -158,14 +159,14 @@ def analyze_repos(args, repos_data, csv_errors):
     branches = [f"{v}.0" for v in range(start_v, end_v + 1)]
 
     resumen = {}
-    rows_full, rows_resume = [], []
 
     for repo, modules in repos_data.items():
         resumen[repo] = {
             "con_migrations": defaultdict(list),
-            "sin": set(),
+            "sin_migrations": set(),
             "errores": [],
-            "no_encontrados": defaultdict(list)
+            "no_encontrados": defaultdict(list),
+            "lineas": {}
         }
 
         for branch in branches:
@@ -176,7 +177,6 @@ def analyze_repos(args, repos_data, csv_errors):
                 log(f"❌ Repositorio no encontrado: {repo_url}")
                 for mod, _, line in modules:
                     resumen[repo]["errores"].append(f"{mod} @ {branch} (repo no encontrado)")
-                    rows_full.append([repo, mod, "Error", f"{branch}: repo no encontrado", line])
                     csv_errors.append((line, [mod, repo_url]))
                 break
 
@@ -186,6 +186,8 @@ def analyze_repos(args, repos_data, csv_errors):
             _, no_encontrados = log_repo_modules(repo, branch, repo_dir, modules)
 
             for module, _, line in modules:
+                resumen[repo]["lineas"][module] = line
+
                 if module in no_encontrados:
                     resumen[repo]["no_encontrados"][module].append(branch)
                     continue
@@ -195,13 +197,10 @@ def analyze_repos(args, repos_data, csv_errors):
                     resumen[repo]["con_migrations"][module].append(branch)
                     if args.save_migrations:
                         save_migrations(repo, branch, module, repo_dir)
-                    rows_full.append([repo, module, "Con migrations", branch, line])
-                    rows_resume.append([repo, module, branch])
                 else:
-                    resumen[repo]["sin"].add(module)
-                    rows_full.append([repo, module, "Sin migrations", branch, line])
+                    resumen[repo]["sin_migrations"].add(module)
 
-    return resumen, rows_full, rows_resume
+    return resumen
 
 def generate_txt_reports(resumen, compact=False):
     def write_section_header(txt, titulo):
@@ -238,7 +237,7 @@ def generate_txt_reports(resumen, compact=False):
                 version_str = " ".join(f"@{v}" for v in sorted(versions))
                 txt.write(f"    🔍 {mod}: No encontrado en {version_str}\n")
 
-    # oca-analysis-full.txt
+    # analysis-full.txt
     with open(TXT_SUMMARY, "w", encoding="utf-8") as txt:
         for repo, data in resumen.items():
             txt.write(f"\n{'*' * 60}\nREPOSITORIO: {repo}\n{'*' * 60}\n")
@@ -247,7 +246,7 @@ def generate_txt_reports(resumen, compact=False):
                 version_str = " ".join(f"@{v}" for v in sorted(vers))
                 txt.write(f"  • {mod}: {version_str}\n")
             txt.write("\n🚫 SIN MIGRATIONS\n")
-            for mod in data["sin"]:
+            for mod in data["sin_migrations"]:
                 if mod not in data["con_migrations"]:
                     txt.write(f"  • {mod}\n")
             txt.write("\n❌ ERRORES\n")
@@ -266,67 +265,67 @@ def generate_txt_reports(resumen, compact=False):
         write_block_not_found(txt)
 
 
-def generate_csv_reports(rows_full, rows_resume, csv_errors, resumen, compact=False):
-    # Análisis completo
-    with open(CSV_FULL, "w", newline='', encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Repositorio", "Módulo", "Estado", "Detalle", "Línea"])
-        writer.writerows(rows_full)
+def generate_csv_reports(resumen, csv_errors, compact=False):
+    rows_migration = []
+    rows_not_found = []
+    repo_mods = defaultdict(list)
+    repos = sorted(resumen.keys())
 
-    # Solo módulos CON migrations
+    for repo in repos:
+        data = resumen[repo]
+
+        # Módulos con migrations
+        for mod, vers in sorted(data["con_migrations"].items()):
+            for v in sorted(vers):
+                rows_migration.append([repo, mod, v])
+                if compact:
+                    version_str = " ".join(f"@{v}" for v in sorted(vers))
+                    if mod not in [m.split(":")[0] for m in repo_mods[repo]]:
+                        repo_mods[repo].append(f"{mod}: {version_str}")
+                    break  # ya se añadió en modo compacto
+                else:
+                    repo_mods[repo].append(f"{mod}: @{v}")
+
+        # Módulos no encontrados
+        for mod, versions in data.get("no_encontrados", {}).items():
+            version_str = " ".join(f"@{v}" for v in sorted(versions))
+            rows_not_found.append([repo, mod, version_str])
+
+    # === CSV: analysis-migration.csv
     with open(CSV_MIGRATION, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Repositorio", "Módulo", "Versión"])
-        writer.writerows(rows_resume)
+        writer.writerows(rows_migration)
 
-    # # Módulos NO encontrados
+    # === CSV: analysis-not-found.csv
     with open(CSV_NOT_FOUND, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Repositorio", "Módulo", "Versiones No Encontradas"])
-        for repo, data in resumen.items():
-            for mod, versions in data.get("no_encontrados", {}).items():
-                version_str = " ".join(f"@{v}" for v in sorted(versions))
-                writer.writerow([repo, mod, version_str])
+        writer.writerows(rows_not_found)
 
-    # Resumen de módulos Agrupado por repositorio
-    repos = sorted(resumen.keys())
-
-    # Mapeamos: repo -> lista de líneas (cada línea será una celda en la columna del repo)
-    repo_mods = defaultdict(list)
-
-    for repo in repos:
-        for mod, vers in sorted(resumen[repo]["con_migrations"].items()):
-            if compact:
-                version_str = " ".join(f"@{v}" for v in sorted(vers))
-                repo_mods[repo].append(f"{mod}: {version_str}")
-            else:
-                for v in sorted(vers):
-                    repo_mods[repo].append(f"{mod}: @{v}")
-
-    # Calculamos máximo número de filas (la columna más larga)
-    max_rows = max(len(mods) for mods in repo_mods.values())
-    rows = []
-
+    # === CSV: analysis-by-report.csv
+    max_rows = max((len(mods) for mods in repo_mods.values()), default=0)
+    rows_by_report = []
     for i in range(max_rows):
         row = []
         for repo in repos:
             mods = repo_mods.get(repo, [])
             row.append(mods[i] if i < len(mods) else "")
-        rows.append(row)
+        rows_by_report.append(row)
 
-    # Guardamos CSV
     with open(CSV_BY_REPORT, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(repos)  # encabezado = nombres de repos
-        writer.writerows(rows)
+        writer.writerow(repos)
+        writer.writerows(rows_by_report)
 
-    # CSV con errores de lectura
+    # === CSV: analysis-errors.csv
     if csv_errors:
-        with open(os.path.join(BASE_DIR, "oca-errors.csv"), "w", newline='', encoding="utf-8") as f:
+        with open(ANALYSIS_CSV_DIR, "w", newline='', encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["Línea", "Contenido"])
             for line, row in csv_errors:
                 writer.writerow([f"{line}", " | ".join(row)])
+
 
 
 def main():
@@ -336,13 +335,12 @@ def main():
         LOG_FILE = os.path.join(BASE_DIR, args.log)
         with open(LOG_FILE, "w", encoding="utf-8") as f:
             f.write("")
-    setup_directories()
     repos_data, csv_errors = parse_csv(args.file)
-    resumen, rows_full, rows_resume = analyze_repos(args, repos_data, csv_errors)
+    resumen = analyze_repos(args, repos_data, csv_errors)
     generate_txt_reports(resumen, compact=args.compact)
-    generate_csv_reports(rows_full, rows_resume, csv_errors, resumen)
+    generate_csv_reports(resumen, csv_errors)
 
-    log(" 🏁 Análisis completo. Archivos generados en oca-collector/")
+    log(" 🏁 Análisis completo. Archivos generados en module-collector/")
 
     if csv_errors:
         log("\n ⚠️ Se encontraron errores en el CSV:\n")
@@ -352,7 +350,7 @@ def main():
             else:
                 module, repo_url = row
                 log(f"  • Línea {line}: ❌ Error en módulo '{module}' | Repo: {repo_url}")
-        log("\n ℹ️ Revisa también el archivo 'oca-errors.csv' para más detalles.")
+        log("\n ℹ️ Revisa también el archivo 'analysis-errors.csv' para más detalles.")
 
 
 if __name__ == "__main__":

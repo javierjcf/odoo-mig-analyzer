@@ -1,7 +1,7 @@
-# 🧠 OCA Migration Analyzer (`oca-mig-analyzer.py`)
+# 🧠 Odoo Migration Analyzer (`oca-mig-analyzer.py`)
 Script de apoyyo para las migraciones de Odoo enterprise. Cuando Odoo S.A. migra una base de datos, solo hace la parte de Odoo community y Odoo enterprise. Todos los módulos de OCA son ignorados.
 
-Este script analiza módulos de Odoo de la comunidad OCA, buscando carpetas `migrations/` en las ramas especificadas, y genera un informe detallado por repositorio y módulo.
+Este script analiza módulos de Odoo, incluidos los de la comunidad OCA, buscando carpetas `migrations/` en las ramas especificadas, y genera un informe detallado por repositorio y módulo.
 
 También tiene la capacidad de guardar las carpetas **migrations/** de cada módulo instalado, y por versión de Odoo, facilitando un análisis previo a realizar la migración de OCA de manera manual.
 
@@ -28,9 +28,9 @@ python3 oca-mig-analyzer.py -s <versión_origen> -e <versión_destino> -f <archi
 
 | Opción           | Descripción                                                    |
 |------------------|----------------------------------------------------------------|
-| `-s`, `--start`  | Versión inicial de Odoo a analizar (ej: `14.0`)                |
-| `-e`, `--end`    | Versión final de Odoo a analizar (ej: `17.0`)                  |
-| `-f`, `--file`   | Ruta al archivo CSV con los módulos instalados de OCA          |
+| `-s`, `--start`  | Versión inicial de Odoo a analizar (ej: `12.0`)                |
+| `-e`, `--end`    | Versión final de Odoo a analizar (ej: `18.0`)                  |
+| `-f`, `--file`   | Ruta al archivo CSV con los módulos instalados                 |
 
 
 #### 🧩 Opciones adicionales
@@ -44,7 +44,8 @@ python3 oca-mig-analyzer.py -s <versión_origen> -e <versión_destino> -f <archi
 
 
 ## 📦 Formato del CSV
-Partimos de un csv con todos los módulos de OCA Instalados.
+Partimos de un csv con todos los módulos de instalados a analizar. Normalmente se usará
+solo para ver los módulos de OCA.
 
 Pordemos conseguirlo filtrando los módulos instalados cuyo **Autor** contiene OCA y agrupando por **Sitio Web**. Después seleccionamos todos los repositorios y exportamos.
 Debe solo dos **dos columnas**, interpretada la primera como nombre de Módulo y la otra como la dirección a OCA: Por ejemplo,"Nombre técnico" y "Sitio web".
