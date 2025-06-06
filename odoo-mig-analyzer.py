@@ -326,12 +326,11 @@ def generate_csv_reports(resumen, csv_errors, compact=False):
 
     # === CSV: analysis-errors.csv
     if csv_errors:
-        with open(ANALYSIS_CSV_DIR, "w", newline='', encoding="utf-8") as f:
+        with open(CSV_ERRORS, "w", newline='', encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["Línea", "Contenido"])
             for line, row in csv_errors:
                 writer.writerow([f"{line}", " | ".join(row)])
-
 
 
 def main():
